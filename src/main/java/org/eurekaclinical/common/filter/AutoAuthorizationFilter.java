@@ -83,20 +83,38 @@ public class AutoAuthorizationFilter implements Filter {
         HttpServletRequest servletRequest = (HttpServletRequest) request;
         AttributePrincipal userPrincipal = (AttributePrincipal) servletRequest.getUserPrincipal();
         HttpSession session = servletRequest.getSession(false);
-        if (userPrincipal != null && session != null) {
-            String[] roleNames;
-            synchronized (session) {
-                roleNames = (String[]) session.getAttribute("roles");
-                if (roleNames == null) {
-                    //User Not Found
-                    createUser(servletRequest.getRemoteUser(), userPrincipal.getAttributes());
-                    chain.doFilter(request, response);
-                }
-            }
-            chain.doFilter(request, response);
-        } else {
-            //throw new Exception
-        }
+        try {
+		        String TestValue = (String) session.getAttribute("Test");
+		        System.out.println("Sessoin Attribute  Value: "+ TestValue);
+		        if(TestValue == "1234") {
+		        	System.out.println("Sessoin Attribute 1 Value: "+ TestValue);
+		        	chain.doFilter(request, response);
+		        }
+		        else {
+		        	System.out.println("Sessoin Attribute 2 Value: "+ TestValue);
+		        session.setAttribute("Test", "1234");
+		        if (userPrincipal != null && session != null) {
+		            String[] roleNames;
+		            System.out.println("Session ID 1 for synchronized method before: "+session.getId());
+		            System.out.println("Sessoin 3 Attribute Value: "+ TestValue);
+		            synchronized (session) {
+		            	System.out.println("Session ID 2 for synchronized method after: "+session.getId());
+		                roleNames = (String[]) session.getAttribute("roles");
+		                if (roleNames == null) {
+		                    //User Not Found
+		                    createUser(servletRequest.getRemoteUser(), userPrincipal.getAttributes());
+		                    chain.doFilter(request, response);
+		                }
+		            }
+		        } else {
+		            //throw new Exception
+		        }
+		        }
+        }catch (Exception e) {
+			// TODO: handle exception
+        	System.out.println("oops something wrong: ");
+        	System.out.println(e.getStackTrace());
+		}
     }
 
     /**
