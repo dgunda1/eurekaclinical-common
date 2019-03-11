@@ -32,6 +32,8 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+
+import org.eurekaclinical.common.util.MyHelper;
 import org.eurekaclinical.standardapis.dao.UserDao;
 
 import org.eurekaclinical.standardapis.dao.UserTemplateDao;
@@ -58,6 +60,7 @@ public class AutoAuthorizationFilter implements Filter {
     private final UserTemplateDao<?, ?> userTemplateDao;
     private final AutoAuthCriteriaParser AUTO_AUTH_CRITERIA_PARSER = new AutoAuthCriteriaParser();
     private final UserDao<?, ?> userDao;
+//    private final Object LOCK = new Object();
 
     @Inject
     public AutoAuthorizationFilter(UserTemplateDao<?, ?> inUserTemplateDao, UserDao<?, ?> inUserDao) {
@@ -82,34 +85,22 @@ public class AutoAuthorizationFilter implements Filter {
             throws IOException, ServletException {
         HttpServletRequest servletRequest = (HttpServletRequest) request;
         AttributePrincipal userPrincipal = (AttributePrincipal) servletRequest.getUserPrincipal();
-        HttpSession session = servletRequest.getSession(false);
+        HttpSession session = servletRequest.getSession(true);
         try {
-		        String TestValue = (String) session.getAttribute("Test");
-		        System.out.println("Sessoin Attribute  Value: "+ TestValue);
-		        if(TestValue == "1234") {
-		        	System.out.println("Sessoin Attribute 1 Value: "+ TestValue);
-		        	chain.doFilter(request, response);
-		        }
-		        else {
-		        	System.out.println("Sessoin Attribute 2 Value: "+ TestValue);
-		        session.setAttribute("Test", "1234");
-		        if (userPrincipal != null && session != null) {
-		            String[] roleNames;
-		            System.out.println("Session ID 1 for synchronized method before: "+session.getId());
-		            System.out.println("Sessoin 3 Attribute Value: "+ TestValue);
-		            synchronized (session) {
-		            	System.out.println("Session ID 2 for synchronized method after: "+session.getId());
+		        
+        	Object sessionLock = MyHelper.getSessionLock(servletRequest, null);
+        	if (userPrincipal != null && session != null) {
+        		String[] roleNames;
+        	synchronized (sessionLock) {
+		            	System.out.println("Session ID 1 for synchronized method after: "+session.getId());
 		                roleNames = (String[]) session.getAttribute("roles");
 		                if (roleNames == null) {
 		                    //User Not Found
-		                    createUser(servletRequest.getRemoteUser(), userPrincipal.getAttributes());
-		                    chain.doFilter(request, response);
+		                    createUser(servletRequest.getRemoteUser(), userPrincipal.getAttributes());		                    
 		                }
 		            }
-		        } else {
-		            //throw new Exception
-		        }
-		        }
+        	}
+        	chain.doFilter(request, response);
         }catch (Exception e) {
 			// TODO: handle exception
         	System.out.println("oops something wrong: ");
@@ -117,6 +108,26 @@ public class AutoAuthorizationFilter implements Filter {
 		}
     }
 
+    /**
+     * session synchtonization lock
+     * */
+//    public Object getSessionLock(HttpServletRequest request, String lockName) {
+//        if (lockName == null) lockName = "SESSION_LOCK";
+//        Object result = request.getSession().getAttribute(lockName);
+//        if (result == null) {
+//            // only if there is no session-lock object in the session we apply the global lock
+//            synchronized (LOCK) {
+//                // as it can be that another thread has updated the session-lock object in the meantime, we have to read it again from the session and create it only if it is not there yet!
+//                result = request.getSession().getAttribute(lockName);
+//                if (result == null) {
+//                    result = new Object();
+//                    request.getSession().setAttribute(lockName, result);
+//                }
+//            }
+//        }
+//        return result;
+//    }
+    
     /**
      * Cleans up resources that were created by the filter.
      */
